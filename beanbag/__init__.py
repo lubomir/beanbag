@@ -24,6 +24,9 @@ You can chain paths as well:
 >>> print foo.bar.baz[3]["xyzzy"].q
 http://hostname/api/foo/bar/baz/3/xyzzy/q
 
+>>> foo.bar.baz[3] += {"a": 5}
+# PATCH {"a": 5"} to http://hostname/api/foo/bar/baz/3
+
 To do a request on a resource that requires a trailing slash:
 
 >>> print foo.bar._
@@ -191,6 +194,10 @@ class BeanBagPath(object):
            >>> x["res"] = {"a": 1}
         """
 
+        if isinstance(val, BeanBagPath):
+            # handle __iadd__ correctly
+            # we do not want PATCH followed with immediate PUT
+            return
         return self[attr]("PUT", val)
 
     def __delattr__(self, attr):
@@ -221,7 +228,8 @@ class BeanBagPath(object):
            >>> x += {"op": "replace", "path": "/a", "value": 3}
         """
 
-        return self("PATCH", val)
+        self("PATCH", val)
+        return self
 
     def __eq__(self, other):
         """Compare two resource references."""
