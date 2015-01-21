@@ -79,8 +79,14 @@ try:
 except ImportError:
     import simplejson as json
 
+try:
+    input = raw_input
+except NameError:
+    pass
+
 __all__ = ['BeanBag', 'BeanBagException',
            'KerbAuth', 'OAuth10aDance']
+
 
 class BeanBagPath(object):
     __slots__ = ("__bbr", "__path")
@@ -107,7 +113,8 @@ class BeanBagPath(object):
            http://host/api/myresource/
         """
 
-        if attr == "_": attr = "/"
+        if attr == "_":
+            attr = "/"
         return self.__getitem__(attr)
 
     def __getitem__(self, item):
@@ -159,7 +166,7 @@ class BeanBagPath(object):
             verb, body = args
         else:
             raise TypeError("__call__ expected up to 2 arguments, got %d"
-                     % (len(args)))
+                            % (len(args)))
         return self.__bbr.make_request(verb, self.__path, kwargs, body)
 
     def __setattr__(self, attr, val):
@@ -170,7 +177,8 @@ class BeanBagPath(object):
            >>> x.res = {"a": 1}
         """
 
-        if attr == "_": attr = "/"
+        if attr == "_":
+            attr = "/"
         if attr.startswith("_BeanBagPath__"):
             return super(BeanBagPath, self).__setattr__(attr, val)
         return self.__setitem__(attr, val)
@@ -222,10 +230,11 @@ class BeanBagPath(object):
         else:
             return False
 
+
 class BeanBag(BeanBagPath):
     __slots__ = ()
-    def __init__(self, base_url, ext = "", session = None,
-                 fmt='json'):
+
+    def __init__(self, base_url, ext="", session=None, fmt='json'):
         """Create a BeanBag reference a base REST path.
 
            Parameters:
@@ -249,11 +258,14 @@ class BeanBag(BeanBagPath):
             content_type, encode, decode = fmt
 
         bbr = BeanBagRequest(session, base_url, ext=ext,
-                content_type=content_type, encode=encode, decode=decode)
+                             content_type=content_type,
+                             encode=encode, decode=decode)
 
         super(BeanBag, self).__init__(bbr, "")
 
+
 class BeanBagRequest(object):
+
     def __init__(self, session, base_url, ext, content_type, encode, decode):
         self.base_url = base_url.rstrip("/") + "/"
         self.ext = ext
@@ -280,29 +292,28 @@ class BeanBagRequest(object):
                 ebody = self.encode(body)
             except:
                 raise BeanBagException("Could not encode request body",
-                        None, (body,))
+                                       None, (body,))
 
         r = self.session.request(verb, path, params=params, data=ebody)
 
         if r.status_code < 200 or r.status_code >= 300:
-            raise BeanBagException( "Bad response code: %d"
-                                      % (r.status_code,),
-                                    r, (verb, path, params, ebody))
+            raise BeanBagException("Bad response code: %d" % (r.status_code,),
+                                   r, (verb, path, params, ebody))
 
         if not r.content:
             return None
 
-        elif r.headers.get("content-type", self.content_type).split(";",1)[0] == self.content_type:
+        elif r.headers.get("content-type", self.content_type).split(";", 1)[0] == self.content_type:
             try:
                 return self.decode(r)
             except:
-                raise BeanBagException("Could not decode response",
-                        r, (verb, path, params, ebody))
+                raise BeanBagException("Could not decode response", r, (verb, path, params, ebody))
 
         else:
             raise BeanBagException("Bad content-type in response (Content-Type: %s)"
-                                     % (r.headers["content-type"],),
+                                   % (r.headers["content-type"],),
                                    r, (verb, path, params, ebody))
+
 
 class BeanBagException(Exception):
     """Exception thrown when a BeanBag request fails.
@@ -319,6 +330,7 @@ class BeanBagException(Exception):
 
     def __init__(self, msg, response, request):
         """Create a BeanBagException"""
+        super(BeanBagException, self).__init__()
 
         self.msg = msg
         self.response = response
@@ -326,8 +338,10 @@ class BeanBagException(Exception):
 
     def __repr__(self):
         return "%s(%s,...)" % (self.__class__.__name__, self.msg)
+
     def __str__(self):
         return self.msg
+
 
 class KerbAuth(requests.auth.AuthBase):
     """Helper class for basic Kerberos authentication using requests
@@ -355,39 +369,42 @@ class KerbAuth(requests.auth.AuthBase):
         header, last = self.header_cache.get(hostname, (None, None))
         if not header or (self.time() - last) > self.timeout:
             service = "HTTP@" + hostname
-            rc, vc = self.kerberos.authGSSClientInit(service);
-            self.kerberos.authGSSClientStep(vc, "");
+            rc, vc = self.kerberos.authGSSClientInit(service)
+            self.kerberos.authGSSClientStep(vc, "")
             header = "negotiate %s" % self.kerberos.authGSSClientResponse(vc)
             last = self.time()
             self.header_cache[hostname] = (header, last)
         r.headers['Authorization'] = header
         return r
 
+
 class OAuth10aDance(object):
     __slots__ = [
-            'req_token', 'authorize', 'acc_token',  # oauth resource URLs
-            'client_key', 'client_secret',          # client creds
-            'user_key', 'user_secret',              # user creds
-            'OAuth1'                                # OAuth1 module ref
-            ]
+        'req_token', 'authorize', 'acc_token',  # oauth resource URLs
+        'client_key', 'client_secret',          # client creds
+        'user_key', 'user_secret',              # user creds
+        'OAuth1'                                # OAuth1 module ref
+    ]
 
     def __init__(self,
                  req_token=None, acc_token=None, authorize=None,
                  client_key=None, client_secret=None,
                  user_key=None, user_secret=None):
+
+
+        self.req_token = req_token
+        self.acc_token = acc_token
+        self.authorize = authorize
+        self.client_key = client_key
+        self.client_secret = client_secret
+        self.user_key = user_key
+        self.user_secret = user_secret
+
         from requests_oauthlib import OAuth1
         self.OAuth1 = OAuth1
 
-        # override instance variables based on parameters
-        for s in self.__slots__:
-            u = locals().get(s, None)
-            if u is not None:
-                setattr(self, s, u)
-            elif not hasattr(self, s):
-                setattr(self, s, None)
-
     def get_auth_url(self):
-        oauth = self.OAuth1(self.client_key, client_secret = self.client_secret)
+        oauth = self.OAuth1(self.client_key, client_secret=self.client_secret)
         r = requests.post(url=self.req_token, auth=oauth)
         credentials = parse_qs(r.content)
 
@@ -398,10 +415,10 @@ class OAuth10aDance(object):
 
     def verify(self, verifier):
         oauth = self.OAuth1(self.client_key,
-                       client_secret=self.client_secret,
-                       resource_owner_key=self.user_key,
-                       resource_owner_secret=self.user_secret,
-                       verifier=verifier)
+                            client_secret=self.client_secret,
+                            resource_owner_key=self.user_key,
+                            resource_owner_secret=self.user_secret,
+                            verifier=verifier)
         r = requests.post(url=self.acc_token, auth=oauth)
         credentials = parse_qs(r.content)
 
@@ -415,9 +432,9 @@ class OAuth10aDance(object):
             return
 
         if not self.client_key:
-            self.client_key = raw_input('Please input client key: ')
+            self.client_key = input('Please input client key: ')
         if not self.client_secret:
-            self.client_secret = raw_input('Please input client secret: ')
+            self.client_secret = input('Please input client secret: ')
 
         if self.user_key and self.user_secret:
             return
@@ -425,7 +442,7 @@ class OAuth10aDance(object):
         assert self.req_token and self.acc_token and self.authorize
 
         print('Please go to url:\n  %s' % (self.get_auth_url(),))
-        verifier = raw_input('Please input the verifier: ')
+        verifier = input('Please input the verifier: ')
         self.verify(verifier)
 
         print('User key: %s\nUser secret: %s' % (self.user_key,
@@ -433,7 +450,6 @@ class OAuth10aDance(object):
 
     def oauth(self):
         return self.OAuth1(self.client_key,
-                           client_secret = self.client_secret,
-                           resource_owner_key = self.user_key,
-                           resource_owner_secret = self.user_secret)
-
+                           client_secret=self.client_secret,
+                           resource_owner_key=self.user_key,
+                           resource_owner_secret=self.user_secret)
