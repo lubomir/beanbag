@@ -92,11 +92,12 @@ __all__ = ['BeanBag', 'BeanBagException',
 
 
 class BeanBagPath(object):
-    __slots__ = ("__bbr", "__path")
+    __slots__ = ("__bbr", "__path", "__replace_underscores")
 
-    def __init__(self, bbr, path):
+    def __init__(self, bbr, path, replace_underscores=False):
         self.__bbr = bbr
         self.__path = path
+        self.__replace_underscores = replace_underscores
 
     def __repr__(self):
         return "<%s(%s)>" % (type(self).__name__, str(self))
@@ -118,6 +119,8 @@ class BeanBagPath(object):
 
         if attr == "_":
             attr = "/"
+        if self.__replace_underscores:
+            attr = attr.replace('_', '-')
         return self.__getitem__(attr)
 
     def __getitem__(self, item):
@@ -137,7 +140,8 @@ class BeanBagPath(object):
             newpath = item
         else:
             newpath = self.__path.rstrip("/") + "/" + item
-        return BeanBagPath(self.__bbr, newpath)
+        return BeanBagPath(self.__bbr, newpath,
+                           replace_underscores=self.__replace_underscores)
 
     def __call__(self, *args, **kwargs):
         """Make a GET, POST or generic request to a resource.
@@ -242,7 +246,8 @@ class BeanBagPath(object):
 class BeanBag(BeanBagPath):
     __slots__ = ()
 
-    def __init__(self, base_url, ext="", session=None, fmt='json'):
+    def __init__(self, base_url, ext="", session=None, fmt='json',
+                 replace_underscores=False):
         """Create a BeanBag reference a base REST path.
 
            Parameters:
@@ -253,8 +258,9 @@ class BeanBag(BeanBagPath):
                fmt: either 'json' for json data, or a tuple specifying a
                   content-type string, encode function (for encoding the
                   request body) and a decode function (for decoding responses)
+               replace_underscores: whether to replace underscores in path
+                  pieces entered as attributes with dashes
         """
-
         if session is None:
             session = requests.Session()
 
@@ -269,7 +275,7 @@ class BeanBag(BeanBagPath):
                              content_type=content_type,
                              encode=encode, decode=decode)
 
-        super(BeanBag, self).__init__(bbr, "")
+        super(BeanBag, self).__init__(bbr, "", replace_underscores)
 
 
 class BeanBagRequest(object):
