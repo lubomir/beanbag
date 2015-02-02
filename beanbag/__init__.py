@@ -71,6 +71,7 @@ see the twitter_example script.
 from __future__ import print_function
 __version__ = '1.0.1'
 
+import zlib
 import requests
 try:
     from urlparse import urlparse, parse_qs
@@ -293,17 +294,31 @@ class BeanBagRequest(object):
         self.session.headers["accept"] = self.content_type
         self.session.headers["content-type"] = self.content_type
 
+        self.gzip_failed = False
+
+    def run_encode(self, body):
+        encoded = self.encode(body)
+        if self.gzip_failed:
+            return encoded
+        try:
+            compressed = zlib.compress(encoded)
+            self.session.headers['content-encoding'] = 'gzip'
+            return compressed
+        except zlib.error:
+            return encoded
+
     def path2url(self, path):
         return self.base_url + path + self.ext
 
     def make_request(self, verb, path, params, body):
+        orig_path = path
         path = self.path2url(path)
 
         if body is None:
             ebody = None
         else:
             try:
-                ebody = self.encode(body)
+                ebody = self.run_encode(body)
             except:
                 raise BeanBagException("Could not encode request body",
                                        None, (body,))
@@ -311,6 +326,13 @@ class BeanBagRequest(object):
         r = self.session.request(verb, path, params=params, data=ebody)
 
         if r.status_code < 200 or r.status_code >= 300:
+            if body and not self.gzip_failed:
+                # Server may not like compressed requests, try again
+                # without compression.
+                self.gzip_failed = True
+                self.session.headers.pop('content-encoding')
+                self.make_request(verb, orig_path, params, body)
+
             raise BeanBagException("Bad response code: %d" % (r.status_code,),
                                    r, (verb, path, params, ebody))
 
