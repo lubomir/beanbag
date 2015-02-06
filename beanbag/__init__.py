@@ -267,7 +267,7 @@ class BeanBag(BeanBagPath):
 
         if fmt == 'json':
             content_type = "application/json"
-            encode = json.dumps
+            encode = lambda x: json.dumps(x, indent=None, separators=(',', ':'))
             decode = lambda req: json.loads(req.text or req.content)
         else:
             content_type, encode, decode = fmt
