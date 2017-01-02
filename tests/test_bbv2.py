@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
 import pytest
-from beanbag.v2 import BeanBag, BeanBagException, GET, POST, PUT, PATCH, DELETE
+from beanbag.v2 import BeanBagException, GET, POST, PUT, PATCH, DELETE
+from beanbag import v2
 from beanbag.attrdict import AttrDict
-import json
-from fake_req import FakeSession, _Any
+from fake_req import FakeSession
+
 
 def test_bb():
     s = FakeSession()
-    b = BeanBag("http://www.example.org/path/", session=s)
+    b = v2.BeanBag("http://www.example.org/path/", session=s)
 
     assert str(b) == "http://www.example.org/path/"
 
@@ -40,17 +41,19 @@ def test_bb():
         GET(b(result="BAD"))
     assert "Could not decode response" == e.value.msg
 
+
+class MyBeanBag(v2.BeanBag):
+    def helper(self, param):
+        pass
+
+    def encode(self, body):
+        return super(~MyBeanBag, self).encode(body)
+
+    def decode(self, response):
+        return super(~MyBeanBag, self).decode(response)
+
+
 def test_sane_inheritance():
-    class MyBeanBag(BeanBag):
-        def helper(self, param):
-            pass
-
-        def encode(self, body):
-            return super(~MyBeanBag, self).encode(body)
-
-        def decode(self, response):
-            return super(~MyBeanBag, self).decode(response)
-
     s = FakeSession()
     bb = MyBeanBag("http://www.example.org/path", session=s)
 
